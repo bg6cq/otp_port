@@ -44,7 +44,7 @@
 
 程序共3个可执行文件，3个配置文件：
 
-3.1 otp_portd
+3.1 `otp_portd`
 
 主要的进程，负责敲门端口和WEB服务处理。为了避免潜在bug的负面影响，该进程启动后用nobody身份运行。
 
@@ -71,10 +71,14 @@ WEB服务的https证书文件，不能有密码保护。
 3.6 配置文件`/etc/otp_port/otp_key.txt`
 
 用户的OTP密钥，格式如下，中间只有一个空格
+```
 16字符base32编码的私钥 用户名
+```
 
 如：
+```
 WUGQECLUOFLAEAAZ james
+```
 
 ## 4. 安装和使用
 
@@ -91,7 +95,7 @@ WUGQECLUOFLAEAAZ james
 ```
 并把以上密钥加入验证器，如google authenticator。
 
-4.1 初步验证：
+4.1 初步验证
 
 确保服务器和手机的时间都准确。
 
@@ -111,7 +115,7 @@ WUGQECLUOFLAEAAZ james
 ```
 ipset create sshotp hash:ip timeout 600
 ```
-，然后在iptables使用类似规则：
+然后在iptables使用类似规则：
 ```
 /sbin/iptables -I INPUT -j ACCEPT -p tcp --dport 22 -m set --match-set sshotp src
 ```
