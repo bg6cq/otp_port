@@ -91,13 +91,15 @@ WUGQECLUOFLAEAAZ james
 ```
 并把以上密钥加入验证器，如google authenticator。
 
-初步验证：
+4.1 初步验证：
 
 确保服务器和手机的时间都准确。
 
 执行命令`/etc/otp_port/otp_verify test password 1.1.1.1`（其中密码启用google authenticator显示的替换），如果正确会显示OK，并执行`/etc/otp_port/openport.sh 1.1.1.1`。
 
-运行 otp_portd。
+4.2 正常运行
+
+运行 otp_portd。用户登录情况会记录在`/var/log/otp_port.log`中。
 
 在客户端连接一次 8442端口，会显示`nice to meet you`，这时使用浏览器访问 https://x.x.x.x:8443，输入用户名和TOTP密码即可通过认证，服务器上会执行`/etc/otp_port/openport.sh 你的IP地址`
 
