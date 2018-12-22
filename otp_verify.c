@@ -1,3 +1,9 @@
+/*
+
+lot of code from https://github.com/fmount/c_otp
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
