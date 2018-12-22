@@ -289,9 +289,9 @@ int main(int argc, char **argv)
 	int enable = 1;
 	SSL_CTX *ctx;
 
-	if(argc>=2)
+	if (argc >= 2)
 		otpport = atoi(argv[1]);
-	if(argc>=3)
+	if (argc >= 3)
 		nkport = atoi(argv[2]);
 
 	printf("otp port: %d\nnk  port: %d\n", otpport, nkport);

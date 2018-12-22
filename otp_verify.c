@@ -263,7 +263,7 @@ int main(int argc, char **argv)
 		printf("ERROR\n");
 		exit(0);
 	}
-	if (otp_verify(key, pass) != 0)	{ // verify error
+	if (otp_verify(key, pass) != 0) {	// verify error
 		printf("ERROR\n");
 		exit(0);
 	}

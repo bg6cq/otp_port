@@ -38,7 +38,7 @@
 
 2.3 用户连接https://x.x.x.x:WEB端口
 
-输入用户名和TOTP密码，验证通过后，会将服务器特定端口打开。
+输入用户名和TOTP密码，验证通过后，会将服务器端口对特定IP地址打开。
 
 ## 3. 工作原理
 
@@ -79,11 +79,11 @@ WUGQECLUOFLAEAAZ james
 ## 4. 安装和使用
 
 编译后，建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，其中HTTPS证书可以
-使用与WEB相同的，也可以使用自己生成的（客户端连接有警告。）
+使用与WEB相同的，也可以使用自己生成的（客户端连接可能有警告）。
 
-注意otp_verify要root suid权限，openport.sh要可执行。为了安全，otp_key.txt server.key应该禁止普通用户读。
+注意otp_verify需要root suid权限，openport.sh需要可执行。为了安全，otp_key.txt server.key应该禁止普通用户读。
 
-按照需要修改 openport.sh 的命令。
+按照需要修改 openport.sh 的命令。设置主机防火墙，允许访问敲门端口和WEB服务端口。
 
 产生随机数，并用base32编码，如`openssl rand 10 | base32`输出为`62JH453WI5C7P74A` ，将这个密钥放在文件`/etc/otp_port/otp_key.txt`中：
 ```
