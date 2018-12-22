@@ -1,6 +1,6 @@
 # WEB界面的TOTP认证端口敲门程序
 
-## 端口敲门程序
+## 1. 端口敲门程序
 
 为了远程管理方便，管理员总是要对外暴漏管理入口。直接将管理入口对外暴露太不安全，因此一般需要把管理入口藏起来。
 
@@ -22,7 +22,7 @@
 
 通过抓包探测序列，效率堪忧。
 
-## WEB界面的TOTP认证端口敲门程序
+## 2. WEB界面的TOTP认证端口敲门程序
 
 本程序是WEB界面的TOTP认证程序，工作过程如下：
 
@@ -40,7 +40,7 @@
 
 输入用户名和TOTP密码，验证通过后，会将服务器特定端口打开。
 
-## 工作原理
+## 3. 工作原理
 
 程序共3个可执行文件，3个配置文件：
 
@@ -76,10 +76,37 @@ WEB服务的https证书文件，不能有密码保护。
 如：
 WUGQECLUOFLAEAAZ james
 
-## 安装和使用
+## 4. 安装和使用
 
-编译后，建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，注意
-otp_verify要root suid权限，openport.sh要可执行。为了安全，otp_key.txt server.key应该禁止普通用户读。
+编译后，建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，其中HTTPS证书可以
+使用与WEB相同的，也可以使用自己生成的（客户端连接有警告。）
+
+注意otp_verify要root suid权限，openport.sh要可执行。为了安全，otp_key.txt server.key应该禁止普通用户读。
 
 按照需要修改 openport.sh 的命令。
- 
+
+产生随机数，并用base32编码，如`openssl rand 10 | base32`输出为`62JH453WI5C7P74A` ，将这个密钥放在文件`/etc/otp_port/otp_key.txt`中：
+```
+62JH453WI5C7P74A test
+```
+并把以上密钥加入验证器，如google authenticator。
+
+初步验证：
+
+确保服务器和手机的时间都准确。
+
+执行命令`/etc/otp_port/otp_verify test password 1.1.1.1`（其中密码启用google authenticator显示的替换），如果正确会显示OK，并执行`/etc/otp_port/openport.sh 1.1.1.1`。
+
+运行 otp_portd。
+
+在客户端连接一次 8442端口，会显示`nice to meet you`，这时使用浏览器访问 https://x.x.x.x:8443，输入用户名和TOTP密码即可通过认证，服务器上会执行`/etc/otp_port/openport.sh 你的IP地址`
+
+
+
+## 5. ipset 小技巧
+
+使用命令`ipset create sshotp hash:ip timeout 600`，然后在iptables使用类似规则：
+```
+/sbin/iptables -I INPUT -j ACCEPT -p tcp --dport 22 -m set --match-set sshotp src
+```
+打开的端口过10分钟，自动关闭。
