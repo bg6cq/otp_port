@@ -120,3 +120,11 @@ ipset create sshotp hash:ip timeout 600
 /sbin/iptables -I INPUT -j ACCEPT -p tcp --dport 22 -m set --match-set sshotp src
 ```
 打开的端口过10分钟，自动关闭。
+
+## 6. 除了使用浏览器敲门外，也可以使用命令行
+
+```
+telnet x.x.x.x 8442
+
+curl -k "https://x.x.x.x:8443/?name=test&pass=623085"
+```
