@@ -22,7 +22,7 @@
 #define OTPPORT 8443
 
 /* if NKPORT is 0, disable nocking */
-#define NKPORT 0
+#define NKPORT 8442
 
 /* after connect nkport, user must pass otp in 60 seconds */
 #define NKTIMEOUT 60
@@ -294,6 +294,31 @@ int main(int argc, char **argv)
 	if (argc >= 3)
 		nkport = atoi(argv[2]);
 
+	/* SSL 库初始化 */
+	SSL_library_init();
+	OpenSSL_add_all_algorithms();
+	SSL_load_error_strings();
+	ctx = SSL_CTX_new(SSLv23_server_method());
+	if (ctx == NULL) {
+		ERR_print_errors_fp(stdout);
+		exit(1);
+	}
+	/* 载入用户的数字证书 */
+	if (SSL_CTX_use_certificate_chain_file(ctx, CERTFILE) <= 0) {
+		ERR_print_errors_fp(stdout);
+		exit(1);
+	}
+	/* 载入用户私钥 */
+	if (SSL_CTX_use_PrivateKey_file(ctx, KEYFILE, SSL_FILETYPE_PEM) <= 0) {
+		ERR_print_errors_fp(stdout);
+		exit(1);
+	}
+	/* 检查用户私钥是否正确 */
+	if (!SSL_CTX_check_private_key(ctx)) {
+		ERR_print_errors_fp(stdout);
+		exit(1);
+	}
+
 	printf("otp port: %d\nnk  port: %d\n", otpport, nkport);
 	pid_t pid;
 	if ((pid = fork()) != 0)
@@ -329,30 +354,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* SSL 库初始化 */
-	SSL_library_init();
-	OpenSSL_add_all_algorithms();
-	SSL_load_error_strings();
-	ctx = SSL_CTX_new(SSLv23_server_method());
-	if (ctx == NULL) {
-		ERR_print_errors_fp(stdout);
-		exit(1);
-	}
-	/* 载入用户的数字证书 */
-	if (SSL_CTX_use_certificate_file(ctx, CERTFILE, SSL_FILETYPE_PEM) <= 0) {
-		ERR_print_errors_fp(stdout);
-		exit(1);
-	}
-	/* 载入用户私钥 */
-	if (SSL_CTX_use_PrivateKey_file(ctx, KEYFILE, SSL_FILETYPE_PEM) <= 0) {
-		ERR_print_errors_fp(stdout);
-		exit(1);
-	}
-	/* 检查用户私钥是否正确 */
-	if (!SSL_CTX_check_private_key(ctx)) {
-		ERR_print_errors_fp(stdout);
-		exit(1);
-	}
 
 	/* 开启otp socket 监听 */
 	if ((otp_listen_port = socket(PF_INET, SOCK_STREAM, 0)) == -1) {

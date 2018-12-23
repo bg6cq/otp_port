@@ -66,7 +66,7 @@ WEB服务的https私钥文件，不能有密码保护。
 
 3.5 配置文件`/etc/otp_port/server.pem`
 
-WEB服务的https证书文件，不能有密码保护。
+WEB服务的https证书链文件，不能有密码保护。前面是自己的证书，后面是中间证书，与Nginx的类似。
 
 3.6 配置文件`/etc/otp_port/otp_key.txt`
 
@@ -86,10 +86,12 @@ WUGQECLUOFLAEAAZ james
 
 ## 4. 安装和使用
 
+需要openssl-devel，libqrencode，CentOS中`yum install openssl-devel qrencode`即可安装。
+
 编译后，建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，其中HTTPS证书可以
 使用与WEB相同的，也可以使用自己生成的（客户端连接可能有警告）。
 
-注意otp_verify需要root suid权限，openport.sh需要可执行。为了安全，otp_key.txt server.key应该禁止普通用户读。
+注意: `/etc/otp_port/otp_verify`需要root suid权限，`/etc/otp_port/openport.sh`需要可执行。为了安全，otp_key.txt server.key应该禁止普通用户读。
 
 按照需要修改 openport.sh 的命令。设置主机防火墙，允许访问敲门端口和WEB服务端口。
 
