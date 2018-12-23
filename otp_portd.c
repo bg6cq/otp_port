@@ -182,7 +182,8 @@ void process_request(SSL * ssl, char *remote_ip)
 	if (http_req[5] == ' ') {	//  / request
 		len = snprintf(buf, MAXBUF - 1, "%s%s",
 			       http_head,
-			       "<html><form action=/ method=GET>"
+			       "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=yes\">"
+			       "<style>body{ width: 100%; max-width: 200px; margin: 0 auto; }</style></head><form action=/ method=GET>"
 			       "<table style=\"border:0px;\" cellSpacing=0 cellPadding=4 width=300>"
 			       "<tr><td>UserName:</td><td><input name=\"name\" size=20></td></tr>"
 			       "<tr><td>OTP Pass:</td><td><input name=\"pass\" size=20></td></tr>"
