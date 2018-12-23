@@ -354,7 +354,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-
 	/* 开启otp socket 监听 */
 	if ((otp_listen_port = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("socket");

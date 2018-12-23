@@ -43,8 +43,11 @@ void Log(char *s)
 	time(&t);
 	ctm = localtime(&t);
 	fplog = fopen("/var/log/otp_portd.log", "a");
-	fprintf(fplog, "%04d.%02d.%02d %02d:%02d:%02d %s\n", ctm->tm_year + 1900, ctm->tm_mon + 1, ctm->tm_mday, ctm->tm_hour, ctm->tm_min, ctm->tm_sec, s);
-	fclose(fplog);
+	if (fplog) {
+		fprintf(fplog, "%04d.%02d.%02d %02d:%02d:%02d %s\n", ctm->tm_year + 1900, ctm->tm_mon + 1, ctm->tm_mday, ctm->tm_hour, ctm->tm_min, ctm->tm_sec,
+			s);
+		fclose(fplog);
+	}
 }
 
 static const int8_t base32_vals[256] = {
