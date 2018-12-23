@@ -84,19 +84,15 @@ int check_client(char *remote_ip)
 
 void process_nk_connection(int nk_fd, char *remote_ip)
 {
-	int i, found = 0;
+	int i;
 	time_t tm;
 	time(&tm);
 	for (i = 0; i < clients; i++) {
 		if ((strcmp(clientinfo[i].IP, remote_ip) == 0) && (tm < clientinfo[i].nk_valid_time)) {
-			found = 1;
-			break;
+			char *str = "you have connected just now\n";
+			write(nk_fd, str, strlen(str));
+			return;
 		}
-	}
-	if (found) {
-		char *str = "you have connected just now\n";
-		write(nk_fd, str, strlen(str));
-		return;
 	}
 	for (i = 0; i < clients; i++) {
 		if (tm > clientinfo[i].nk_valid_time) {
@@ -294,7 +290,6 @@ int main(int argc, char **argv)
 	if (argc >= 3)
 		nkport = atoi(argv[2]);
 
-	/* SSL 库初始化 */
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
 	SSL_load_error_strings();
@@ -303,17 +298,14 @@ int main(int argc, char **argv)
 		ERR_print_errors_fp(stdout);
 		exit(1);
 	}
-	/* 载入用户的数字证书 */
 	if (SSL_CTX_use_certificate_chain_file(ctx, CERTFILE) <= 0) {
 		ERR_print_errors_fp(stdout);
 		exit(1);
 	}
-	/* 载入用户私钥 */
 	if (SSL_CTX_use_PrivateKey_file(ctx, KEYFILE, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stdout);
 		exit(1);
 	}
-	/* 检查用户私钥是否正确 */
 	if (!SSL_CTX_check_private_key(ctx)) {
 		ERR_print_errors_fp(stdout);
 		exit(1);
@@ -360,7 +352,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	setsockopt(otp_listen_port, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
-
 	bzero(&my_addr, sizeof(my_addr));
 	my_addr.sin_family = PF_INET;
 	my_addr.sin_port = htons(otpport);
@@ -380,7 +371,7 @@ int main(int argc, char **argv)
 		set_socket_non_blocking(nk_listen_port);
 	set_socket_non_blocking(otp_listen_port);
 
-	setuid(65534);
+	setuid(65534);		// change to nobody
 
 	while (1) {
 		fd_set fds;
@@ -394,17 +385,15 @@ int main(int argc, char **argv)
 			continue;
 		if (nkport && FD_ISSET(nk_listen_port, &fds)) {	// new connection to nkport
 			sock_len = sizeof(struct sockaddr);
-			/* 等待客户端连上来 */
 			if ((new_fd = accept(nk_listen_port, (struct sockaddr *)&their_addr, &sock_len)) == -1)
 				continue;
 			process_nk_connection(new_fd, inet_ntoa(their_addr.sin_addr));
 			close(new_fd);
 			continue;
 		}
-		if (!FD_ISSET(otp_listen_port, &fds))	// new connection to otp_port?
+		if (!FD_ISSET(otp_listen_port, &fds))	// new connection to otp_port
 			continue;
 		sock_len = sizeof(struct sockaddr);
-		/* 等待客户端连上来 */
 		if ((new_fd = accept(otp_listen_port, (struct sockaddr *)&their_addr, &sock_len)) == -1)
 			continue;
 		if (check_client(inet_ntoa(their_addr.sin_addr)) != 0) {
@@ -422,26 +411,18 @@ int main(int argc, char **argv)
 		close(nk_listen_port);
 		close(otp_listen_port);
 
-		/* 基于 ctx 产生一个新的 SSL */
 		SSL *ssl;
 		ssl = SSL_new(ctx);
-		/* 将连接用户的 socket 加入到 SSL */
 		SSL_set_fd(ssl, new_fd);
-		/* 建立 SSL 连接 */
 		if (SSL_accept(ssl) == -1) {
 			perror("accept");
 			close(new_fd);
 			exit(0);
 		}
-
 		process_request(ssl, inet_ntoa(their_addr.sin_addr));
-		/* 关闭 SSL 连接 */
 		SSL_shutdown(ssl);
-		/* 释放 SSL */
 		SSL_free(ssl);
-		/* 关闭 socket */
 		close(new_fd);
-
 		exit(0);
 	}
 	exit(0);
