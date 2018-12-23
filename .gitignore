@@ -2,3 +2,5 @@ otp_portd
 otp_portd.c~
 otp_verify
 otp_verify.c~
+otp_genkey
+otp_genkey.c~

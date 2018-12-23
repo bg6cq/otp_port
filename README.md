@@ -42,11 +42,11 @@
 
 ## 3. 工作原理
 
-程序共3个可执行文件，3个配置文件：
+程序共4个可执行文件，3个配置文件：
 
 3.1 `otp_portd`
 
-主要的进程，负责敲门端口和WEB服务处理。为了避免潜在bug的负面影响，该进程启动后用nobody身份运行。
+主要的进程，负责敲门端口和WEB服务处理(实现了一个最简单的HTTPS WEB服务)。为了避免潜在bug的负面影响，该进程启动后用nobody身份运行。
 
 接收用户输入后，调用下面的3.2 otp_verify 验证并执行操作。
 
@@ -80,6 +80,10 @@ WEB服务的https证书文件，不能有密码保护。
 WUGQECLUOFLAEAAZ james
 ```
 
+3.7 密码生成辅助程序 `otp_genkey`
+
+该程序使用openssl生成10字节密钥，并用base32编码，显示二维码（系统安装有libqrencode.so），直接用google authenticator扫描即可添加。
+
 ## 4. 安装和使用
 
 编译后，建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，其中HTTPS证书可以
@@ -89,11 +93,18 @@ WUGQECLUOFLAEAAZ james
 
 按照需要修改 openport.sh 的命令。设置主机防火墙，允许访问敲门端口和WEB服务端口。
 
-产生随机数，并用base32编码，如`openssl rand 10 | base32`输出为`62JH453WI5C7P74A` ，将这个密钥放在文件`/etc/otp_port/otp_key.txt`中：
+执行命令 `otp_genkey username hostname`，其中用户名和主机名是方便google authenticator添加描述的。
+
+如果系统安装有libqrencode.so，会直接显示二维码，用google authenticator扫描即可。
+
+也可以访问显示的URL，扫描显示的二维码。
+
+或者直接在google authenticator中输入密钥。
+
+随后将密钥放在文件`/etc/otp_port/otp_key.txt`中：
 ```
 62JH453WI5C7P74A test
 ```
-并把以上密钥加入验证器，如google authenticator。
 
 4.1 初步验证
 
