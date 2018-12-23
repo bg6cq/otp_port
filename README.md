@@ -99,7 +99,9 @@ make编译后，make install 建立目录`/etc/otp_port`，参照 3 工作原理
 
 如果系统安装有libqrencode.so，会直接显示二维码，用google authenticator扫描即可。
 
-也可以访问显示的URL，扫描显示的二维码。
+![IMG](img/keygen.png =300)
+
+也可以访问显示的URL，扫描网页显示的二维码。
 
 或者直接在google authenticator中输入密钥。
 
