@@ -88,7 +88,7 @@ WUGQECLUOFLAEAAZ james
 
 需要openssl-devel，libqrencode，CentOS中`yum install openssl-devel qrencode`即可安装。
 
-编译后，建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，其中HTTPS证书可以
+make编译后，make install 建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，其中HTTPS证书可以
 使用与WEB相同的，也可以使用自己生成的（客户端连接可能有警告）。
 
 注意: `/etc/otp_port/otp_verify`需要root suid权限，`/etc/otp_port/openport.sh`需要可执行。为了安全，otp_key.txt server.key应该禁止普通用户读。
