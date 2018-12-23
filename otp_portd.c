@@ -278,6 +278,9 @@ void process_request(SSL * ssl, char *remote_ip)
 	return;
 }
 
+const char *const PREFERRED_CIPHERS =
+    "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA";
+
 int main(int argc, char **argv)
 {
 	int nk_listen_port, otp_listen_port, new_fd;
@@ -299,6 +302,8 @@ int main(int argc, char **argv)
 		ERR_print_errors_fp(stdout);
 		exit(1);
 	}
+	const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
+	SSL_CTX_set_options(ctx, flags);
 	if (SSL_CTX_use_certificate_chain_file(ctx, CERTFILE) <= 0) {
 		ERR_print_errors_fp(stdout);
 		exit(1);
@@ -415,6 +420,11 @@ int main(int argc, char **argv)
 		SSL *ssl;
 		ssl = SSL_new(ctx);
 		SSL_set_fd(ssl, new_fd);
+		if (SSL_set_cipher_list(ssl, PREFERRED_CIPHERS) != 1) {
+			perror("SSL_set_cipher_list");
+			close(new_fd);
+			exit(0);
+		}
 		if (SSL_accept(ssl) == -1) {
 			perror("accept");
 			close(new_fd);
