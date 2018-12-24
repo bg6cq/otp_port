@@ -26,7 +26,9 @@
 
 /* after connect nkport, user must pass otp in 60 seconds */
 #define NKTIMEOUT 60
-#define MAXCOUNT 20
+#define MAXCOUNTPERIP 20
+
+#define MAXCOUNTPERMIN 100
 
 #define MAXCLIENT 1024
 
@@ -38,6 +40,8 @@ typedef struct {
 
 ClientInfo clientinfo[MAXCLIENT];
 int clients;
+time_t connect_valid_time;
+int connect_count;
 
 int otpport = OTPPORT;
 int nkport = NKPORT;
@@ -70,27 +74,42 @@ int check_client(char *remote_ip)
 {
 	int i;
 	time_t tm;
-	if (nkport == 0)
-		return 0;
+	int per_client_ok = 0;
 	time(&tm);
-	for (i = 0; i < clients; i++) {
-		if ((strcmp(clientinfo[i].IP, remote_ip) == 0) && (tm < clientinfo[i].nk_valid_time) && (clientinfo[i].count < MAXCOUNT)) {
-			clientinfo[i].count++;
+
+	if (nkport == 0)
+		per_client_ok = 1;
+	else
+		for (i = 0; i < clients; i++) {
+			if ((strcmp(clientinfo[i].IP, remote_ip) == 0) && (tm < clientinfo[i].nk_valid_time) && (clientinfo[i].count < MAXCOUNTPERIP)) {
+				clientinfo[i].count++;
+				per_client_ok = 1;
+			}
+		}
+	if (per_client_ok == 0)
+		return 1;
+	if (tm < connect_valid_time) {
+		if (connect_count < MAXCOUNTPERMIN) {
+			connect_count++;
 			return 0;
 		}
+		return 1;
 	}
-	return 1;
+	connect_valid_time = tm + 60;
+	connect_count = 0;
+	return 0;
 }
 
 void process_nk_connection(int nk_fd, char *remote_ip)
 {
 	int i;
 	time_t tm;
+	char buf[MAXBUF];
 	time(&tm);
 	for (i = 0; i < clients; i++) {
 		if ((strcmp(clientinfo[i].IP, remote_ip) == 0) && (tm < clientinfo[i].nk_valid_time)) {
-			char *str = "you have connected just now\n";
-			write(nk_fd, str, strlen(str));
+			snprintf(buf, MAXBUF - 1, "you have connected just now %s %d\n", remote_ip, clientinfo[i].count);
+			write(nk_fd, buf, strlen(buf));
 			return;
 		}
 	}
@@ -99,8 +118,8 @@ void process_nk_connection(int nk_fd, char *remote_ip)
 			strcpy(clientinfo[i].IP, remote_ip);
 			clientinfo[i].nk_valid_time = tm + NKTIMEOUT;
 			clientinfo[i].count = 0;
-			char *str = "nice to meet you\n";
-			write(nk_fd, str, strlen(str));
+			snprintf(buf, MAXBUF - 1, "nice to meet you %s\n", remote_ip);
+			write(nk_fd, buf, strlen(buf));
 			return;
 		}
 	}
@@ -113,8 +132,8 @@ void process_nk_connection(int nk_fd, char *remote_ip)
 	clientinfo[i].nk_valid_time = tm + NKTIMEOUT;
 	clientinfo[i].count = 0;
 	clients++;
-	char *str = "nice to meet you\n";
-	write(nk_fd, str, strlen(str));
+	snprintf(buf, MAXBUF - 1, "nice to meet you %s\n", remote_ip);
+	write(nk_fd, buf, strlen(buf));
 	return;
 }
 
@@ -161,7 +180,8 @@ static const char tbl[256] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
-char *http_head = "HTTP/1.0 200 OK\r\nConnection: close\r\nContent-Type: text/html; charset=UTF-8\r\nServer: otp web server by james@ustc.edu.cn\r\n\r\n";
+char *http_head =
+    "HTTP/1.0 200 OK\r\nConnection: close\r\nContent-Type: text/html; charset=UTF-8\r\nCache-Control: no-cache\r\nServer: otp web server by james@ustc.edu.cn\r\n\r\n";
 
 void process_request(SSL * ssl, char *remote_ip)
 {
@@ -180,11 +200,12 @@ void process_request(SSL * ssl, char *remote_ip)
 		return;
 	}
 	if (http_req[5] == ' ') {	//  / request
-		len = snprintf(buf, MAXBUF - 1, "%s%s",
+		len = snprintf(buf, MAXBUF - 1, "%s%s%s%s",
 			       http_head,
 			       "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=yes\">"
 			       "<style>body{ width: 100%; max-width: 200px; margin: 0 auto; }</style></head><form action=/ method=GET>"
 			       "<table style=\"border:0px;\" cellSpacing=0 cellPadding=4 width=300>"
+			       "<tr><td>Your IP:</td><td>", remote_ip, "</td></tr>"
 			       "<tr><td>UserName:</td><td><input name=\"name\" size=20></td></tr>"
 			       "<tr><td>OTP Pass:</td><td><input name=\"pass\" size=20></td></tr>"
 			       "<tr><td colspan=2><input type=submit value=\"OTP Authenticate\"></td></tr>" "</table></form>");
