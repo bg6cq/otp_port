@@ -32,13 +32,13 @@
 
 2.2 用户首先连接敲门端口，触发打开WEB服务端口
 
-其中敲门端口是可选的，如果不设置或者设置为0，敲门过程不起作用，即WEB服务端口永远开放。
+其中敲门端口是可选的，如果设置为0，敲门过程不起作用，即WEB服务端口永远开放。
 
 用户通过telnet或任何程序连接敲门端口，在60秒钟内，可以允许最多连接20次 WEB服务端口。
 
 2.3 用户连接https://x.x.x.x:WEB端口
 
-输入用户名和TOTP密码，验证通过后，会将服务器端口对特定IP地址打开。
+输入用户名和TOTP密码，验证通过后，会执行一个脚本将服务器端口对特定IP地址打开。
 
 ## 3. 工作原理
 
@@ -60,15 +60,15 @@
 
 打开端口的脚本，$1 为对方IP地址。
 
-3.4 配置文件`/etc/otp_port/server.key`
+3.4 配置文件`/etc/otp_port/server.key` & `/etc/otp_port/server.pem`
 
-WEB服务的https私钥文件，不能有密码保护。
+分别是WEB服务的https私钥文件 和 https证书链文件，不能有密码保护。
 
-3.5 配置文件`/etc/otp_port/server.pem`
+证书链文件前面是自己的证书，后面是中间证书，与Nginx的类似。
 
-WEB服务的https证书链文件，不能有密码保护。前面是自己的证书，后面是中间证书，与Nginx的类似。
+证书文件可以使用公开CA签发的，也可以自己建立一个CA签发，一个例子请见 https://github.com/bg6cq/ITTS/blob/master/security/ca/README.md
 
-3.6 配置文件`/etc/otp_port/otp_key.txt`
+3.5 配置文件`/etc/otp_port/otp_key.txt`
 
 用户的OTP密钥，格式如下，中间只有一个空格
 ```
@@ -80,13 +80,21 @@ WEB服务的https证书链文件，不能有密码保护。前面是自己的证
 WUGQECLUOFLAEAAZ james
 ```
 
-3.7 密码生成辅助程序 `otp_genkey`
+3.6 密码生成辅助程序 `otp_genkey`
 
 该程序使用openssl生成10字节密钥，并用base32编码，显示二维码（系统安装有libqrencode.so），直接用google authenticator扫描即可添加。
 
 ## 4. 安装和使用
 
 需要openssl-devel，libqrencode，CentOS中`yum install openssl-devel qrencode`即可安装。
+
+```
+cd /usr/src
+git clone https://github.com/bg6cq/otp_port
+cd otp_port
+make
+make install
+```
 
 make编译后，make install 建立目录`/etc/otp_port`，参照 3 工作原理 描述，将3.2、3.3、3.4、3.5文件放到/etc/otp_port 目录下，其中HTTPS证书可以
 使用与WEB相同的，也可以使用自己生成的（客户端连接可能有警告）。
@@ -101,7 +109,7 @@ make编译后，make install 建立目录`/etc/otp_port`，参照 3 工作原理
 
 ![IMG](img/keygen.png)
 
-也可以访问显示的URL，扫描网页显示的二维码。
+也可以访问显示的URL，用google authenticator扫描网页显示的二维码。
 
 或者直接在google authenticator中输入密钥。
 
@@ -114,14 +122,13 @@ make编译后，make install 建立目录`/etc/otp_port`，参照 3 工作原理
 
 确保服务器和手机的时间都准确。
 
-执行命令`/etc/otp_port/otp_verify test password 1.1.1.1`（其中密码启用google authenticator显示的替换），如果正确会显示OK，并执行`/etc/otp_port/openport.sh 1.1.1.1`。
+执行命令`/etc/otp_port/otp_verify test password 1.1.1.1`（其中密码用google authenticator显示的替换），如果正确会显示OK，并执行`/etc/otp_port/openport.sh 1.1.1.1`。
 
 4.2 正常运行
 
 运行 otp_portd。用户登录情况会记录在`/var/log/otp_port.log`中。
 
 在客户端连接一次 8442端口，会显示`nice to meet you`，这时使用浏览器访问 https://x.x.x.x:8443 ，输入用户名和TOTP密码即可通过认证，服务器上会执行`/etc/otp_port/openport.sh 你的IP地址`
-
 
 
 ## 5. ipset 小技巧
