@@ -200,7 +200,9 @@ char *find_user_key(char *username)
 			continue;
 		if (buf[KEYLEN] != ' ')
 			continue;
-		if (buf[strlen(buf) - 1] == '\n')
+		while (buf[strlen(buf) - 1] == '\n')
+			buf[strlen(buf) - 1] = 0;
+		while (buf[strlen(buf) - 1] == ' ')
 			buf[strlen(buf) - 1] = 0;
 		buf[KEYLEN] = 0;
 		if (strcmp(buf + KEYLEN + 1, username) == 0) {
@@ -213,28 +215,35 @@ char *find_user_key(char *username)
 	return key;
 }
 
-void check_val_username(char *p)
+/* 0 if all ok */
+int check_val_username(char *p)
 {
 	while (*p && ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || (*p == '-') || (*p == '_')))
 		p++;
-	if (*p)
-		exit(0);
+	return *p != 0;
 }
 
-void check_val_pass(char *p)
+int check_val_pass(char *p)
 {
 	while (*p && (*p >= '0' && *p <= '9'))
 		p++;
-	if (*p)
-		exit(0);
+	return *p != 0;
 }
 
-void check_val_ip(char *p)
+int check_val_ip(char *p)
 {
 	while (*p && ((*p >= '0' && *p <= '9') || (*p == '.')))
 		p++;
-	if (*p)
-		exit(0);
+	return *p != 0;
+}
+
+void fail(char *username, char *ip)
+{
+	char buf[MAXBUF];
+	printf("ERROR\n");
+	snprintf(buf, MAXBUF - 1, "%s %s ERROR", username, ip);
+	Log(buf);
+	exit(0);
 }
 
 int main(int argc, char **argv)
@@ -247,25 +256,21 @@ int main(int argc, char **argv)
 	pass = argv[2];
 	ip = argv[3];
 
-	check_val_username(username);
-	check_val_pass(pass);
-	check_val_ip(ip);
+	if (check_val_username(username) || check_val_pass(pass) || check_val_ip(ip))
+		fail(username, ip);
 
 	setuid(0);		// change to root
 
 	key = find_user_key(username);
-	if (key[0] == 0) {
-		printf("ERROR\n");
-		exit(0);
-	}
-	if (otp_verify(key, pass) != 0) {	// verify error
-		printf("ERROR\n");
-		exit(0);
-	}
-	snprintf(buf, MAXBUF - 1, "%s %s", username, ip);
+	if (key[0] == 0)
+		fail(username, ip);
+	if (otp_verify(key, pass) != 0)	// verify error
+		fail(username, ip);
+
+	snprintf(buf, MAXBUF - 1, "%s %s OK", username, ip);
 	Log(buf);
 	printf("OK\n");
 	snprintf(buf, MAXBUF - 1, "%s %s 2>/dev/null >/dev/null", OPENPORTCMD, ip);
 	system(buf);
-	exit(0);
+	return 0;
 }

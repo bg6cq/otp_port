@@ -14,7 +14,7 @@ install:
 	if [ ! -d /etc/otp_port ]; then mkdir /etc/otp_port; fi
 	cp -f otp_verify /etc/otp_port/otp_verify
 	chown root /etc/otp_port/otp_verify
-	chmod +s /etc/otp_port/otp_verify
+	chmod u+s /etc/otp_port/otp_verify
 	if [ ! -f /etc/otp_port/openport.sh ]; then cp openport.sh /etc/otp_port; fi
 	if [ ! -f /etc/otp_port/otp_key.txt ]; then touch /etc/otp_port/otp_key.txt; chmod og-rw /etc/otp_port/otp_key.txt; fi
 
