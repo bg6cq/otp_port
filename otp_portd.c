@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 		ERR_print_errors_fp(stdout);
 		exit(1);
 	}
-	const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
+	const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION | SSL_OP_CIPHER_SERVER_PREFERENCE;
 	SSL_CTX_set_options(ctx, flags);
 	if (SSL_CTX_use_certificate_chain_file(ctx, CERTFILE) <= 0) {
 		ERR_print_errors_fp(stdout);
