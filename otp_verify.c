@@ -232,7 +232,7 @@ int check_val_pass(char *p)
 
 int check_val_ip(char *p)
 {
-	while (*p && ((*p >= '0' && *p <= '9') || (*p == '.')))
+	while (*p && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F') || (*p == '.') || (*p == ':')))
 		p++;
 	return *p != 0;
 }

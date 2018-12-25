@@ -136,10 +136,12 @@ make编译后，make install 建立目录`/etc/otp_port`，参照 3 工作原理
 使用命令创建ipset
 ```
 ipset create sshotp hash:ip timeout 600
+ipset create sshotpv6 hash:ip timeout 600 family inet6
 ```
 然后在iptables使用类似规则：
 ```
 /sbin/iptables -I INPUT -j ACCEPT -p tcp --dport 22 -m set --match-set sshotp src
+/sbin/ip6tables -I INPUT -j ACCEPT -p tcp --dport 22 -m set --match-set sshotpv6 src
 ```
 打开的端口过10分钟，自动关闭。
 

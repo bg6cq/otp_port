@@ -33,7 +33,7 @@
 #define MAXCLIENT 1024
 
 typedef struct {
-	char IP[20];
+	char IP[INET6_ADDRSTRLEN];
 	int count;
 	time_t nk_valid_time;
 } ClientInfo;
@@ -45,6 +45,9 @@ int connect_count;
 
 int otpport = OTPPORT;
 int nkport = NKPORT;
+int ipv6 = 0;
+int ipv4 = 0;
+int debug = 0;
 
 int set_socket_non_blocking(int fd)
 {
@@ -155,7 +158,7 @@ void check_val_pass(char *p)
 
 void check_val_ip(char *p)
 {
-	while (*p && ((*p >= '0' && *p <= '9') || (*p == '.')))
+	while (*p && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F') || (*p == '.') || (*p == ':')))
 		p++;
 	if (*p)
 		exit(0);
@@ -348,20 +351,108 @@ static DH *M_net_ssl_get_dh2236(void)
 const char *const PREFERRED_CIPHERS =
     "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA";
 
+int socket_and_listen(int port)
+{
+	int socket_fd = -1;
+	int enable = 1;
+
+	if (!ipv4) {
+		if ((socket_fd = socket(AF_INET6, SOCK_STREAM, 0)) >= 0) {
+			struct sockaddr_in6 my_addr6;
+			setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+			memset(&my_addr6, 0, sizeof(my_addr6));
+			my_addr6.sin6_family = AF_INET6;
+			my_addr6.sin6_port = htons(port);
+			if (bind(socket_fd, (struct sockaddr *)&my_addr6, sizeof(my_addr6)) < 0) {
+				perror("bind");
+				exit(-1);
+			}
+		}
+	}
+	if (!ipv6 && (socket_fd < 0)) {
+		if ((socket_fd = socket(AF_INET6, SOCK_STREAM, 0)) >= 0) {
+			struct sockaddr_in my_addr;
+			setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+			bzero(&my_addr, sizeof(my_addr));
+			my_addr.sin_family = PF_INET;
+			my_addr.sin_port = htons(nkport);
+			my_addr.sin_addr.s_addr = INADDR_ANY;
+			if (bind(socket_fd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1) {
+				perror("bind");
+				exit(-1);
+			}
+		}
+	}
+	if (socket_fd < 0) {
+		printf("could not create socket\n");
+		exit(-1);
+	}
+	if (listen(socket_fd, 10) == -1) {
+		perror("listen");
+		exit(1);
+	}
+	set_socket_non_blocking(socket_fd);
+	return socket_fd;
+}
+
+void usage()
+{
+	printf("Usage:\n");
+	printf("   opt_portd [ -d ] [ -4 ] [ -6 ] [ web_port ] [ knock_port ]\n");
+	printf("        -d enable debug\n");
+	printf("        -4 force ipv4\n");
+	printf("        -6 force ipv6\n");
+	printf("        default port is 8443 8442\n");
+	exit(0);
+}
+
+char *client_addr(struct sockaddr_storage *remote_addr)
+{
+	static char hbuf[INET6_ADDRSTRLEN];
+	hbuf[0] = 0;
+	if (remote_addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *r = (struct sockaddr_in6 *)remote_addr;
+		inet_ntop(AF_INET6, &r->sin6_addr, hbuf, sizeof(hbuf));
+		if (memcmp(hbuf, "::ffff:", 7) == 0)
+			strcpy(hbuf, hbuf + 7);
+	} else if (remote_addr->ss_family == AF_INET) {
+		struct sockaddr_in *r = (struct sockaddr_in *)remote_addr;
+		inet_ntop(AF_INET, &r->sin_addr, hbuf, sizeof(hbuf));
+	}
+	return hbuf;
+}
+
 int main(int argc, char **argv)
 {
 	int nk_listen_port, otp_listen_port, new_fd;
-	socklen_t sock_len;
-	struct sockaddr_in my_addr, their_addr;
-	int enable = 1;
 	SSL_CTX *ctx;
 	EC_KEY *ecdh;
 	DH *dh;
+	int c;
+	while ((c = getopt(argc, argv, "d46h")) != EOF)
+		switch (c) {
+		case 'd':
+			debug = 1;
+			break;
+		case '4':
+			ipv4 = 1;
+			break;
+		case '6':
+			ipv6 = 1;
+			break;
+		case 'h':
+			usage();
+		};
 
-	if (argc >= 2)
-		otpport = atoi(argv[1]);
-	if (argc >= 3)
-		nkport = atoi(argv[2]);
+	if (ipv4 && ipv6) {
+		printf("you could not force v4 & v6\n");
+		exit(0);
+	}
+
+	if (argc - optind >= 1)
+		otpport = atoi(argv[optind]);
+	if (argc - optind >= 2)
+		nkport = atoi(argv[optind + 1]);
 
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
@@ -394,7 +485,6 @@ int main(int argc, char **argv)
 	}
 	SSL_CTX_set_tmp_ecdh(ctx, ecdh);
 	EC_KEY_free(ecdh);	/* Safe because of reference counts */
-
 	/* Use static DH parameters.  This logic comes from:
 	 * http://en.wikibooks.org/wiki/OpenSSL/Diffie-Hellman_parameters
 	 * And OpenSSL's docs say "Application authors may compile in DH parameters."
@@ -408,71 +498,35 @@ int main(int argc, char **argv)
 	SSL_CTX_set_tmp_dh(ctx, dh);
 	DH_free(dh);		/* Safe because of reference counts */
 
-	printf("otp port: %d\nnk  port: %d\n", otpport, nkport);
-	pid_t pid;
-	if ((pid = fork()) != 0)
-		exit(0);
+	printf("otp web port: %d\nknocking port: %d\n", otpport, nkport);
 
-	close(0);
-	close(1);
-	close(2);
-	setsid();
-	(void)signal(SIGCLD, SIG_IGN);
-	(void)signal(SIGHUP, SIG_IGN);
+	if (debug == 0) {
+		pid_t pid;
+		if ((pid = fork()) != 0)
+			exit(0);
+		close(0);
+		close(1);
+		close(2);
+		setsid();
+		(void)signal(SIGCLD, SIG_IGN);
+		(void)signal(SIGHUP, SIG_IGN);
 
-	if (nkport != 0) {
-		/* 开启NK PORT socket 监听 */
-		if ((nk_listen_port = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
-			perror("socket");
-			exit(1);
-		}
-		setsockopt(nk_listen_port, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
-		bzero(&my_addr, sizeof(my_addr));
-		my_addr.sin_family = PF_INET;
-		my_addr.sin_port = htons(nkport);
-		my_addr.sin_addr.s_addr = INADDR_ANY;
-
-		if (bind(nk_listen_port, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1) {
-			perror("bind");
-			exit(1);
-		}
-
-		if (listen(nk_listen_port, 10) == -1) {
-			perror("listen");
-			exit(1);
-		}
 	}
+	if (nkport)
+		/* 开启NK PORT socket 监听 */
+		nk_listen_port = socket_and_listen(nkport);
 
 	/* 开启otp socket 监听 */
-	if ((otp_listen_port = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
-		perror("socket");
-		exit(1);
-	}
-	setsockopt(otp_listen_port, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
-	bzero(&my_addr, sizeof(my_addr));
-	my_addr.sin_family = PF_INET;
-	my_addr.sin_port = htons(otpport);
-	my_addr.sin_addr.s_addr = INADDR_ANY;
-
-	if (bind(otp_listen_port, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1) {
-		perror("bind");
-		exit(1);
-	}
-
-	if (listen(otp_listen_port, 10) == -1) {
-		perror("listen");
-		exit(1);
-	}
-
-	if (nkport)
-		set_socket_non_blocking(nk_listen_port);
-	set_socket_non_blocking(otp_listen_port);
+	otp_listen_port = socket_and_listen(otpport);
 
 	setuid(65534);		// change to nobody
 
 	while (1) {
 		fd_set fds;
 		int result;
+		struct sockaddr_storage their_addr;
+		socklen_t sock_len;
+		sock_len = sizeof(struct sockaddr_storage);
 		FD_ZERO(&fds);
 		if (nkport)
 			FD_SET(nk_listen_port, &fds);
@@ -481,19 +535,21 @@ int main(int argc, char **argv)
 		if (result <= 0)
 			continue;
 		if (nkport && FD_ISSET(nk_listen_port, &fds)) {	// new connection to nkport
-			sock_len = sizeof(struct sockaddr);
 			if ((new_fd = accept(nk_listen_port, (struct sockaddr *)&their_addr, &sock_len)) == -1)
 				continue;
-			process_nk_connection(new_fd, inet_ntoa(their_addr.sin_addr));
+			if (debug)
+				printf("new connection to nkocking port: %s\n", client_addr(&their_addr));
+			process_nk_connection(new_fd, client_addr(&their_addr));
 			close(new_fd);
 			continue;
 		}
 		if (!FD_ISSET(otp_listen_port, &fds))	// new connection to otp_port
 			continue;
-		sock_len = sizeof(struct sockaddr);
 		if ((new_fd = accept(otp_listen_port, (struct sockaddr *)&their_addr, &sock_len)) == -1)
 			continue;
-		if (check_client(inet_ntoa(their_addr.sin_addr)) != 0) {
+		if (debug)
+			printf("new connection to web port: %s\n", client_addr(&their_addr));
+		if (check_client(client_addr(&their_addr)) != 0) {
 			close(new_fd);
 			continue;
 		}
@@ -507,7 +563,6 @@ int main(int argc, char **argv)
 
 		close(nk_listen_port);
 		close(otp_listen_port);
-
 		SSL *ssl;
 		ssl = SSL_new(ctx);
 		SSL_set_fd(ssl, new_fd);
@@ -521,7 +576,7 @@ int main(int argc, char **argv)
 			close(new_fd);
 			exit(0);
 		}
-		process_request(ssl, inet_ntoa(their_addr.sin_addr));
+		process_request(ssl, client_addr(&their_addr));
 		SSL_shutdown(ssl);
 		SSL_free(ssl);
 		close(new_fd);
