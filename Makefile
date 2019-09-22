@@ -1,14 +1,14 @@
 all: otp_portd otp_verify otp_genkey
 
 otp_genkey: otp_genkey.c
-	gcc -Wall -g -o otp_genkey otp_genkey.c -lssl 
+	gcc -Wall -g -o otp_genkey otp_genkey.c -lssl -ldl -lcrypto
 
 otp_verify: otp_verify.c
-	gcc -Wall -g -o otp_verify otp_verify.c -lssl -lm
+	gcc -Wall -g -o otp_verify otp_verify.c -lssl -lm -lcrypto
 	chmod u+s otp_verify
 
 otp_portd: otp_portd.c
-	gcc -Wall -g -o otp_portd otp_portd.c -lssl
+	gcc -Wall -g -o otp_portd otp_portd.c -lssl -lcrypto
 
 install:
 	if [ ! -d /etc/otp_port ]; then mkdir /etc/otp_port; fi

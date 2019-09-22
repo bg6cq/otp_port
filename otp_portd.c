@@ -336,13 +336,17 @@ static DH *M_net_ssl_get_dh2236(void)
 		0x02,
 	};
 	DH *dh;
+	BIGNUM *dhp_bn, *dhg_bn;
 
 	if ((dh = DH_new()) == NULL)
 		return NULL;
-	dh->p = BN_bin2bn(dh2236_p, sizeof(dh2236_p), NULL);
-	dh->g = BN_bin2bn(dh2236_g, sizeof(dh2236_g), NULL);
-	if (dh->p == NULL || dh->g == NULL) {
+	dhp_bn = BN_bin2bn(dh2236_p, sizeof(dh2236_p), NULL);
+	dhg_bn = BN_bin2bn(dh2236_g, sizeof(dh2236_g), NULL);
+	if (dhp_bn == NULL || dhg_bn == NULL
+		|| !DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn)) {
 		DH_free(dh);
+		BN_free(dhp_bn);
+		BN_free(dhg_bn);
 		return NULL;
 	}
 	return dh;
